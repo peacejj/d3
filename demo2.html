@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>利用json生成流程图</title>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/2.1.0/joint.css" />
+    <style type="text/css">
+        .left {
+            float: left;
+            height: 100%;
+            width: 20%;
+        }
+
+        html,
+        body,
+        #paper {
+            height: 100%;
+            width: 100%;
+        }
+
+        #paper {
+            position: absolute;
+            top: 0;
+        }
+
+        p {
+            margin: 50px 0;
+        }
+    </style>
+</head>
+<body>
+<!-- content -->
+<div id="paper"></div>
+<div class="box"></div>
+
+
+<!-- dependencies -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.3.3/backbone.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jointjs/2.1.0/joint.js"></script>
+
+<!-- code -->
+
+<script type="text/javascript">
+    var graph = new joint.dia.Graph;
+
+    var paper = new joint.dia.Paper({
+        el: $('#paper'),
+        width: 100 + '%',
+        height: 100 + '%',
+        gridSize: 1,
+        model: graph
+    });
+
+    function shape(x, y, label, a, b) {
+
+        var cell = new joint.shapes.basic.Rect({
+            position: {
+                x: x,
+                y: y
+            },
+            size: {
+                width: 100,
+                height: 50
+            },
+            attrs: {
+                rect: {
+                    fill: '#000',
+                    rx: 5,
+                    ry: 5,
+                    'stroke-width': 0
+                },
+                text: {
+                    text: label,
+                    'ref-x': .5,
+                    'ref-y': .5,
+                    fill: '#fff'
+                },
+            }
+        });
+
+        graph.addCell(cell);
+        $(a).click(function() {
+            window.open(b);
+        });
+        cell.toBack();
+        return cell;
+    };
+
+    function link(source, target, label, vertices) {
+
+        var cell = new joint.shapes.fsa.Arrow({
+            source: {
+                id: source.id
+            },
+            target: {
+                id: target.id
+            },
+            labels: [{
+                position: 0.5,
+                attrs: {
+                    text: {
+                        text: label || '',
+                        'font-weight': 'bold'
+                    }
+                }
+            }],
+            vertices: vertices || [],
+            attrs: ({
+                '.connection': {
+                    stroke: '#333333', //连线颜色
+                    'stroke-width': 4 //连线粗细
+                },
+                '.marker-target': {
+                    fill: 'red',
+                    d: 'M 10 0 L 0 5 L 10 10 z'
+                }
+            })
+        });
+        graph.addCell(cell);
+
+        cell.toBack()
+
+        return cell;
+    }
+
+    var data = [
+        [{
+            title: '订单',
+            tolink: "",
+            state: "0",
+            id: "1",
+            name: '订单'
+        }],
+        [{
+            title: '预售',
+            tolink: "1",
+            state: "1",
+            id: "2",
+            name: '预售'
+        }, {
+            title: '预售2',
+            tolink: "1",
+            state: "0",
+            id: "3",
+            name: '预售2'
+        }],
+        [{
+            title: '采购清单',
+            tolink: "3",
+            state: "1",
+            id: "4",
+            name: '采购清单'
+        }]
+    ];
+
+    console.log(data);
+    var arraylist = [];
+    $.each(data, function(index, item1) {
+        $(".box").append("<div class='left'></div>")
+
+        $.each(item1, function(index2, item2) {
+
+            $(".left").eq(index).append("<p id='" + item1[index2].id + "'>" + item1[index2].title + "</p>")
+            debugger
+            var id1 = item1[index2].id
+            var arrValue1 = arraylist[id1];
+            var y = $("#" + id1).offset().top;
+            var x = $("#" + id1).offset().left;
+            var name = item1[index2].name
+            if(arrValue1 == undefined) {
+                arraylist[id1] = shape(x, y, name);
+            }
+            if(item1[index2].tolink != "") {
+                var id2 = item1[index2].tolink
+                var arrValue2 = arraylist[id2];
+                var y2 = $("#" + id2).offset().top;
+                var x2 = $("#" + id2).offset().left;
+                var state = item1[index2].state
+                if(arrValue2 == undefined) {
+                    arraylist[id2] = shape(x2, y2);
+                }
+                link(arraylist[id2], arraylist[id1], state);
+            }
+
+        });
+
+    });
+
+</script>
+</body>
+</html>

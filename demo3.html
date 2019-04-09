@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>节点上出现3个按钮：删除/生成新元素/连线
+        https://blog.csdn.net/qq_40285497/article/details/81233607
+    </title>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/2.1.0/joint.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.3.3/backbone.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jointjs/2.1.0/joint.js"></script>
+    <style>
+        .treeOperate{
+            position: absolute;
+            width: 100px;
+            height: 40px;
+            padding: 20px;
+            /*background: url("login_bg.jpg") no-repeat center/100% 100% content-box;*/
+        }
+        .treeOperate a{
+            position: absolute;
+        }
+        .treeOperate .addEle{
+            bottom: 0;
+            left: 0;
+        }
+        .treeOperate .addLink{
+            bottom: 0;
+            right: 0;
+        }
+        .treeOperate .deleteEle{
+            top: 0;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+<div id="paper" class="paper"></div>
+</body>
+<script>
+
+    //删除一个节点，要知道到父亲节点，删除父亲节点中相应childrenMsg中的元素以及linkMsg中相应元素。
+    //然后在用找到这个节点以及他的所有子节点，删除
+
+    //新增一个节点，要给sharingMsg中相应元素增加id，childrenMsg，linkMsg等信息
+    //还要insideMsg中增加相应内容
+
+    var graph = new joint.dia.Graph;
+
+    var paper = new joint.dia.Paper({
+        el: document.getElementById('paper'),
+        model: graph,
+        width: 600,
+        gridSize: 10,
+        drawGrid: true,
+        background: {
+            color: 'rgba(0, 255, 0, 0.3)'
+        }
+    });
+
+    //生成节点,obj = {left,top,text}
+    function createEle(obj) {
+        var rect = new joint.shapes.standard.Rectangle();
+        rect.position(obj.left, obj.top); //位置
+        rect.resize(100, 40);   //大小
+        rect.attr({
+            body: {
+                fill: 'blue',
+                rx:20,  //rx,ry设置圆角
+                ry:20
+            },
+            label: {
+                text: obj.text,
+                fill: 'white'
+            }
+        });
+        return rect;
+    }
+
+    //生成线 根据位置
+    // custom link definition
+    var CustomLink = joint.dia.Link.define('examples.CustomLink', {
+        defaultLabel: {
+            // attrs: { text: { text: '*' } }
+        },
+        smooth: true
+    });
+    //obj = {x1,y1,x2,y2}  obj ={source,x2,y2}
+    function createLink(obj) {
+        var link = new CustomLink({
+            // source: { x: obj.x1, y: obj.y1 },
+            source: { id: obj.source.id },
+            target: { x: obj.x2, y: obj.y2 },
+            // router: { name: 'manhattan' },
+        });
+        return link;
+    }
+
+    //根据起始元素生成的线
+    function createLinkEle(source, target){
+        var link = new CustomLink({
+            source: { id: source.id },
+            target: { id: target.id },
+            attrs: ({
+                '.connection': {
+//                    stroke: '#333333', //连线颜色
+//                    'stroke-width': 4 //连线粗细
+                },
+                '.marker-target': {//线箭头指向样式
+                    fill: 'red',
+                    d: 'M 10 0 L 0 5 L 10 10 z'
+                }
+            })
+//             ,router: { name: 'manhattan' }
+        });
+        return link;
+    }
+
+    // graph.addCell();
+
+    //定义一个装删除元素id的数组，每当删除元素时，存入id，每当生成元素时，先取这里面的值作为id
+    //为空时取sharingMsg的length作为id
+    var hadDelEles = [];
+
+    //这个信息是接收来自后台的数据,其中的cid，parentID都是会变的，不是固定的，只起到判断父子节点的作用
+    var sharingMsg = [
+        {
+            id:1,
+            text:'第一规则',
+            sign:1000,  //sign判断元素所在行，越上面的越大，确定元素所在y轴的位置
+            layer:1,    //layer表示元素所在层级，确定元素所在x轴的位置
+            parentID:null,
+            childrenMsg:[2,3,4],
+            //连接信息，判断
+            linkMsg:['通过','拒绝','人工复核']
+        },
+        {
+            id:2,
+            parentID:1,
+            text:'第2规则',
+            sign:999,
+            layer:2,
+            childrenMsg:[5,6],
+            linkMsg:['通过','拒绝']
+        },
+        {
+            id:3,
+            parentID:1,
+            text:'第3规则',
+            sign:1000,
+            layer:2,
+            childrenMsg:[],
+            linkMsg:[]
+        },
+        {
+            id:4,
+            parentID:1,
+            text:'第4规则',
+            sign:1001,
+            layer:2,
+            childrenMsg:[],
+            linkMsg:[]
+        },
+        {
+            id:5,
+            parentID:2,
+            text:'第5规则',
+            sign:998,
+            layer:3,
+            childrenMsg:[],
+            linkMsg:[]
+        },
+        {
+            id:6,
+            parentID:2,
+            text:'第6规则',
+            sign:999,
+            layer:3,
+            childrenMsg:[],
+            linkMsg:[]
+        }
+    ];
+    //定义一个存放被删除元素id的数组，当新建时，从这里找，如果这个数组有，就从这个数组中取，如果没有，就从
+    //设为sharingMsg的length
+
+    //这个数组存放界面中存在的节点
+    var insideMsg = [];
+
+    //调整画布大小函数，返回一个对象，包含树的最大最小层，包含输的最大最小sign
+    function adjustPaperSize() {
+        //根据下面的值，判断画布大小，元素位置
+        var maxSign = 0,
+            minSign = sharingMsg[0].sign,
+            maxLayer = 0,
+            minLayer = sharingMsg[0].layer;
+        for(var i=0;i<sharingMsg.length;i++){
+            if(sharingMsg[i].layer<minLayer){
+                minLayer = sharingMsg[i].layer;
+            }
+            if(sharingMsg[i].layer>maxLayer){
+                maxLayer = sharingMsg[i].layer;
+            }
+            if(sharingMsg[i].sign<minSign){
+                minSign = sharingMsg[i].sign;
+            }
+            if(sharingMsg[i].sign>maxSign){
+                maxSign = sharingMsg[i].sign;
+            }
+        }
+        paper.$el.css({
+            width:(maxSign - minSign + 1) * 150 +50,
+            height:(maxLayer - minLayer + 1) * 100 + 40
+        });
+        return {
+            maxSign:maxSign,
+            minSign:minSign,
+            maxLayer:maxLayer,
+            minLayer:minLayer
+        }
+    }
+
+    //打开界面时渲染生成树图
+    function newTreeChart() {
+        //调整画布大小
+        var tempSize = adjustPaperSize();
+        var minSign = tempSize.minSign,
+            minLayer = tempSize.minLayer;
+        //生成元素
+        for(var i=0;i<sharingMsg.length;i++){
+            //一个元素长100，宽40，水平间隔50，第一个距离左侧50，垂直距离20，最上一个距离上边30；
+            var left = (sharingMsg[i].sign - minSign) * 150 + 50;
+            var top = (sharingMsg[i].layer - minLayer) * 100 + 30;
+            var obj = {
+                left:left,
+                top:top,
+                text:sharingMsg[i].text
+            };
+            var ele = createEle(obj);
+            insideMsg.push({
+                self:ele
+            });
+            //下面这句该变sharingMsg相应节点的cid，为了之后的操作
+            sharingMsg[i].cid = ele.cid;
+            graph.addCell(ele)
+        }
+
+        //生成线
+        //遍历每个节点，判断是否要生成线
+        sharingMsg.forEach(function (item) {
+            //如果节点存在孩子，进一步操作
+            if(item.childrenMsg.length>0){
+                //存在子元素，需要连线，先找到来源元素source
+                var source = null;
+                //insideMsg里面才存有真正的节点
+                for(var i=0;i<insideMsg.length;i++){
+                    if(item.cid == insideMsg[i].self.cid){
+                        source = insideMsg[i].self;
+                        break;
+                    }
+                }
+                console.log(source);
+
+                var nowItem = item;
+                //利用当前节点的childrenMsg中的子元素id从sharingMsg中找到相应点
+                item.childrenMsg.forEach(function (item,index) {
+                    console.log(3);
+                    //设置目标元素
+                    var target = null;
+                    var tempTarget = null;
+                    //设置线条颜色
+                    var color = nowItem.linkMsg[index];
+                    for(var i=0;i<sharingMsg.length;i++){
+                        if(item == sharingMsg[i].id){
+                            tempTarget = sharingMsg[i];
+                            //获取真正的target
+                            for(var j=0;j<insideMsg.length;j++){
+                                if(tempTarget.cid == insideMsg[j].self.cid){
+                                    target = insideMsg[i].self;
+                                    var link = createLinkEle(source,target);
+                                    if(color == '通过'){
+                                        link.attr({
+                                            '.connection': { stroke: 'green'},
+                                        });
+                                    }
+                                    if(color == '拒绝'){
+                                        link.attr({
+                                            '.connection': { stroke: 'red',},
+                                        });
+                                    }
+                                    if(color == '人工复核'){
+                                        link.attr({
+                                            '.connection': { stroke: 'blue',},
+                                        });
+                                    }
+                                    graph.addCell(link);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                })
+            }
+        });
+    }
+    newTreeChart();
+
+    //元素点击事件
+    paper.on('cell:pointerclick',function (e,d) {
+        console.log(e);
+//        console.log(d);
+        var target = null;
+        for(var i=0;i<insideMsg.length;i++){
+            if(e.model.cid == insideMsg[i].self.cid){
+                target = insideMsg[i].self;
+            }
+        }
+        newTreeOperate(target);
+        d.stopPropagation();
+    });
+
+    //生成
+    function newTreeOperate(obj) {
+        console.log("obj",obj);
+        var html = '<div class="treeOperate">\n' +
+            '    <a href="javascript:;" class="deleteEle">del</a>\n' +
+            '    <a href="javascript:;" class="addEle">ele</a>\n' +
+            '    <a href="javascript:;" class="addLink">link</a>\n' +
+            '</div>';
+        $('body').append(html);
+        $('.treeOperate').css({
+            //因为操作弹窗的直接父元素是body，$("body").append()所以位置要微调。
+            //因为操作弹窗的直接父元素是body，$("body").append()所以位置要微调。
+            left:obj.attributes.position.x - 12,
+            top:obj.attributes.position.y - 12
+        });
+        $('body').on('click',function () {
+            $('.treeOperate').remove();
+        });
+        $('.addEle').on('click',function () {
+            var tempObj = {
+                left:obj.attributes.position.x + 150,
+                top:obj.attributes.position.y,
+                text:'请选择规则',
+            };
+            var cell = createEle(tempObj);
+            cell.attr('text/fill','black');
+            cell.attr('rect/fill','#fff');
+            //新增节点后要给sharingMsg中这个节点的父亲的childrenMsg中加入此节点id
+            //要在sharingMsg中加入此节点相应信息，在insideMsg中加入此节点相应信息
+            insideMsg.push({
+                self:cell
+            });
+            var tempId = 0;
+            if(hadDelEles.length>0){
+                tempId = hadDelEles.pop();
+            }else{
+                tempId = sharingMsg.length;
+            }
+            var tempParentID = 0,
+                tempSign = 0,
+                tempLayer = 0;
+            //找到此节点的父亲节点，为父亲节点加上孩子节点（该节点）的信息（id）
+            sharingMsg.forEach(function (item) {
+                if(item.cid == obj.cid){
+                    tempParentID = item.id;
+                    item.childrenMsg.push(tempId);
+                    tempSign = item.sign + 1;
+                    tempLayer = item.layer;
+                }
+            });
+            sharingMsg.push({
+                id:tempId,
+                cid:cell.cid,   //绑定和真正元素的联系
+                parentID:tempParentID, //这个id也要改
+                text:'请选择规则',
+                sign:tempSign,
+                layer:tempLayer,
+                childrenMsg:[],
+                linkMsg:[]
+            });
+            graph.addCell(cell);
+            var link = createLinkEle(obj, cell);
+            graph.addCell(link);
+            adjustPaperSize();
+        });
+
+        $('.addLink').on('click',function () {
+            var tempObj = {
+                source:obj,
+                x2:obj.attributes.position.x + 150,
+                y2:obj.attributes.position.y + 10
+            };
+            var link = createLink(tempObj);
+            graph.addCell(link);
+        });
+
+        $('.deleteEle').on('click',function () {
+            //删除元素时，在sharingMsg中先删除父亲节点中childrenMsg中相应id，在删除该节点以及他的子节点，删除的节点先存入一个数组nowDel
+            //根据nowDel数组中的节点，在insideMdg这个真正存在节点的数组中删除相应节点。
+            //这个a为需要删除的节点，
+            var a = null;
+            console.log(sharingMsg);
+            for(var i=0;i<sharingMsg.length;i++){
+                if(obj.cid == sharingMsg[i].cid){   //真正的节点和sharingMsg是靠cid来绑定相关的
+                    a = sharingMsg[i]
+                }
+            }
+            console.log(1111);
+            //在父元素中删除该子节点的id
+            sharingMsg.forEach(function(item){
+                if(item.id == a.parentID){
+                    var tempIndex = item.childrenMsg.indexOf(a.id);
+                    item.childrenMsg.splice(tempIndex,1);
+                }
+            });
+
+            var nowDel = [a];
+            function fn(f) {
+                //这里应该是可以优化的，push到nowDel的可以删除掉
+                f.childrenMsg.forEach(function(item,index,array){
+                    var ThisItem = item;
+                    sharingMsg.forEach(function (item, index, array) {
+                        if(ThisItem == item.id){
+                            nowDel.push(item);
+                            fn(item);
+                        }
+                    })
+                });
+            }
+            fn(a);
+            nowDel.forEach(function(item,index){
+                for(var i=insideMsg.length-1;i>=0;i--){
+                    if(item.cid == insideMsg[i].self.cid){
+                        console.log(22);
+                        insideMsg[i].self.remove();
+                        insideMsg.splice(i,1);
+                    }
+                }
+                for(var i=sharingMsg.length-1;i>=0;i--){
+                    if(item.id == sharingMsg.id){
+                        sharingMsg.splice(i,1);
+                    }
+                }
+            })
+
+        });
+    }
+
+    //生成最终的json
+    console.log("json:",JSON.stringify(graph.toJSON()));
+
+    var resJson = {
+        "cells": [{
+            "type": "standard.Rectangle",
+            "position": {
+                "x": 350,
+                "y": 30
+            },
+            "size": {
+                "width": 100,
+                "height": 40
+            },
+            "angle": 0,
+            "id": "6301b4e0-af69-4913-8e60-c641ce0bac2e",
+            "z": 1,
+            "attrs": {
+                "body": {
+                    "fill": "blue",
+                    "rx": 20,
+                    "ry": 20
+                },
+                "label": {
+                    "fill": "white",
+                    "text": "第一规则"
+                }
+            }
+        }, {
+            "type": "standard.Rectangle",
+            "position": {
+                "x": 200,
+                "y": 130
+            },
+            "size": {
+                "width": 100,
+                "height": 40
+            },
+            "angle": 0,
+            "id": "c0ee616b-a4c3-4ded-9b02-6e00e7685076",
+            "z": 2,
+            "attrs": {
+                "body": {
+                    "fill": "blue",
+                    "rx": 20,
+                    "ry": 20
+                },
+                "label": {
+                    "fill": "white",
+                    "text": "第2规则"
+                }
+            }
+        }, {
+            "type": "standard.Rectangle",
+            "position": {
+                "x": 350,
+                "y": 130
+            },
+            "size": {
+                "width": 100,
+                "height": 40
+            },
+            "angle": 0,
+            "id": "ae6991a5-85a8-47e0-bd0f-6193f3c7d690",
+            "z": 3,
+            "attrs": {
+                "body": {
+                    "fill": "blue",
+                    "rx": 20,
+                    "ry": 20
+                },
+                "label": {
+                    "fill": "white",
+                    "text": "第3规则"
+                }
+            }
+        }, {
+            "type": "standard.Rectangle",
+            "position": {
+                "x": 500,
+                "y": 130
+            },
+            "size": {
+                "width": 100,
+                "height": 40
+            },
+            "angle": 0,
+            "id": "8b5d4e1b-e90f-4cac-a458-8649a59e97d3",
+            "z": 4,
+            "attrs": {
+                "body": {
+                    "fill": "blue",
+                    "rx": 20,
+                    "ry": 20
+                },
+                "label": {
+                    "fill": "white",
+                    "text": "第4规则"
+                }
+            }
+        }, {
+            "type": "standard.Rectangle",
+            "position": {
+                "x": 50,
+                "y": 230
+            },
+            "size": {
+                "width": 100,
+                "height": 40
+            },
+            "angle": 0,
+            "id": "6990622c-7b57-4846-9138-d26634854d5f",
+            "z": 5,
+            "attrs": {
+                "body": {
+                    "fill": "blue",
+                    "rx": 20,
+                    "ry": 20
+                },
+                "label": {
+                    "fill": "white",
+                    "text": "第5规则"
+                }
+            }
+        }, {
+            "type": "standard.Rectangle",
+            "position": {
+                "x": 200,
+                "y": 230
+            },
+            "size": {
+                "width": 100,
+                "height": 40
+            },
+            "angle": 0,
+            "id": "b6cb8999-80ac-426d-94b6-be36449bfeec",
+            "z": 6,
+            "attrs": {
+                "body": {
+                    "fill": "blue",
+                    "rx": 20,
+                    "ry": 20
+                },
+                "label": {
+                    "fill": "white",
+                    "text": "第6规则"
+                }
+            }
+        }, {
+            "type": "examples.CustomLink",
+            "defaultLabel": {},
+            "smooth": true,
+            "source": {
+                "id": "6301b4e0-af69-4913-8e60-c641ce0bac2e"
+            },
+            "target": {
+                "id": "c0ee616b-a4c3-4ded-9b02-6e00e7685076"
+            },
+            "id": "2dbbec6f-fd42-499d-b389-b6ec7e7d7042",
+            "z": 7,
+            "attrs": {
+                ".connection": {
+                    "stroke": "green"
+                }
+            }
+        }, {
+            "type": "examples.CustomLink",
+            "defaultLabel": {},
+            "smooth": true,
+            "source": {
+                "id": "6301b4e0-af69-4913-8e60-c641ce0bac2e"
+            },
+            "target": {
+                "id": "ae6991a5-85a8-47e0-bd0f-6193f3c7d690"
+            },
+            "id": "54bdbfd7-5840-4cc3-b0ae-eb8a4fce3e3c",
+            "z": 8,
+            "attrs": {
+                ".connection": {
+                    "stroke": "red"
+                }
+            }
+        }, {
+            "type": "examples.CustomLink",
+            "defaultLabel": {},
+            "smooth": true,
+            "source": {
+                "id": "6301b4e0-af69-4913-8e60-c641ce0bac2e"
+            },
+            "target": {
+                "id": "8b5d4e1b-e90f-4cac-a458-8649a59e97d3"
+            },
+            "id": "d6924c0d-fc08-4f34-ae79-0e75f9eb57aa",
+            "z": 9,
+            "attrs": {
+                ".connection": {
+                    "stroke": "blue"
+                }
+            }
+        }, {
+            "type": "examples.CustomLink",
+            "defaultLabel": {},
+            "smooth": true,
+            "source": {
+                "id": "c0ee616b-a4c3-4ded-9b02-6e00e7685076"
+            },
+            "target": {
+                "id": "6990622c-7b57-4846-9138-d26634854d5f"
+            },
+            "id": "7bfe68dc-2166-4c85-9c08-f5c573c548f1",
+            "z": 10,
+            "attrs": {
+                ".connection": {
+                    "stroke": "green"
+                }
+            }
+        }, {
+            "type": "examples.CustomLink",
+            "defaultLabel": {},
+            "smooth": true,
+            "source": {
+                "id": "c0ee616b-a4c3-4ded-9b02-6e00e7685076"
+            },
+            "target": {
+                "id": "b6cb8999-80ac-426d-94b6-be36449bfeec"
+            },
+            "id": "9626fc6b-8653-4632-91f7-f2e5b547a688",
+            "z": 11,
+            "attrs": {
+                ".connection": {
+                    "stroke": "red"
+                }
+            }
+        }]
+    }
+
+    console.log(resJson.cells.length);
+</script>
+</html>
