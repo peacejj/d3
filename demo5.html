@@ -324,10 +324,39 @@
 </div>
 </body>
 <script>
+
+    //最终的数据集
     var workflow = {
-        nodes: {},
+        nodes: [],
         lines: []
     };
+
+    //初始化渲染
+    function newTreeChart(svg,data) {
+        data.nodes.forEach(function (item, i) {
+            //添加节点
+            addNode(svg,item);
+        });
+        data.lines.forEach(function (item, i) {
+            //添加线
+            addLine(svg,item,data.nodes);
+        });
+//        addLine(svg,data.lines);
+    }
+
+    //生成线
+    function addLine(svg, line,nodes) {
+        svg.append("path")
+            .attr("class", "cable")
+            .attr("from", line.startId)
+            .attr("to", line.endId)
+            .attr("marker-end", "url(#arrowhead)")
+            .attr("d", line.d)
+            .attr("id", line.id)
+            .attr("start", line.start)
+            .attr("end", line.end);
+    }
+
     $(function () {
         var svg = d3.select("svg");
         // 绑定拖拽
@@ -347,6 +376,7 @@
                     x: ui.position.left - 250,
                     y: ui.position.top - 40,
                     text: ui.helper.text(),
+                    childrenMsg: {},
                     inputs: 1,
                     outputs: 2
                 };
@@ -361,51 +391,84 @@
                     node.inputs = 1;
                     node.outputs = 1;
                 }
-                // 计算节点编号
-                if (workflow.nodes[node.dataId]) {
-                    workflow.nodes[node.dataId] += 1;
-                } else {
-                    workflow.nodes[node.dataId] = 1;
-                }
+                // 记录在数据集中
+                workflow.nodes.push(node);
+
                 var g = addNode(svg, node);
 
-                g.call(
-                    d3.drag()
-                        .on("start", dragstarted)
-                        .on("drag", dragged)
-                        .on("end", dragended)
-                );
-
-                g.selectAll("circle.output").call(
-                    d3.drag()
-                        .on("start", linestarted)
-                        .on("drag", linedragged)
-                        .on("end", lineended)
-                );
-
-                g.selectAll("circle.input")
-                    .on("mouseover", function () {
-                        if (drawLine) {
-
-                            //判断线数组中fromid=入口
-                            var inLineLength = workflow.lines.filter(function (en) {
-                                return en.endId == d3.select(this.parentNode).attr("id");
-                            }.bind(this)).length;
-                            if(inLineLength>=1){
-                                alert("入口只能连一条线");
-                                activeLine.remove();
-                                return false;
-                            }
-                            d3.selectAll("circle.end").classed("end", false);
-                            d3.select(this).classed("end", true);
-
-
-                        }
-                    });
+//                g.call(
+//                    d3.drag()
+//                        .on("start", dragstarted)
+//                        .on("drag", dragged)
+//                        .on("end", dragended)
+//                );
+//
+//                g.selectAll("circle.output").call(
+//                    d3.drag()
+//                        .on("start", linestarted)
+//                        .on("drag", linedragged)
+//                        .on("end", lineended)
+//                );
+//
+//                g.selectAll("circle.input")
+//                    .on("mouseover", function () {
+//                        if (drawLine) {
+//
+//                            //判断线数组中fromid=入口
+//                            var inLineLength = workflow.lines.filter(function (en) {
+//                                return en.endId == d3.select(this.parentNode).attr("id");
+//                            }.bind(this)).length;
+//                            if (inLineLength >= 1) {
+//                                alert("入口只能连一条线");
+//                                activeLine.remove();
+//                                return false;
+//                            }
+//                            d3.selectAll("circle.end").classed("end", false);
+//                            d3.select(this).classed("end", true);
+//
+//
+//                        }
+//                    });
 
                 console.log("workflow:", workflow);
             }
         });
+
+        //根据数据集转换成图
+        var testData = {
+            "nodes": [{
+                "id": 1554803426987,
+                "dataId": "101",
+                "x": 538,
+                "y": 26,
+                "text": "\n                        \n                            \n                            读数据\n                        \n                    ",
+                "childrenMsg": {
+                    "left": "1554803428446"
+                },
+                "inputs": 0,
+                "outputs": 1
+            }, {
+                "id": 1554803428446,
+                "dataId": "102",
+                "x": 570,
+                "y": 145,
+                "text": "\n                        \n                            \n                            写数据\n                        \n                    ",
+                "childrenMsg": {},
+                "inputs": 1,
+                "outputs": 0
+            }],
+            "lines": [{
+                "id": "1554803430741",
+                "d": "M598,72 C598,108.5 658,108.5 658,145",
+                "start": "60, 46",
+                "end": "90, 0",
+                "startId": "1554803426987",
+                "startDataId": "101",
+                "endId": "1554803428446",
+                "endDataId": "102"
+            }]
+        };
+        newTreeChart(svg, testData);
     });
 
     var activeLine = null;
@@ -423,13 +486,18 @@
         var outLineLength = workflow.lines.filter(function (en) {
             return en.startId == node.attr("id");
         }).length;
-        if(outLineLength>=2){
+        if (outLineLength >= 2) {
             alert("只能连两条线");
             return false;
         }
 
         var rect = node.node().getBoundingClientRect();
-        var dx = rect.width / (+anchor.attr("output") + 1);
+        var dx = 0;
+        if (anchor.attr("outputPos") == 0) {
+            dx = rect.width / 3;
+        } else {
+            dx = rect.width * 2 / 3;
+        }
         var dy = rect.height;
         var transform = node.attr("transform");
         translate = getTranslate(transform);
@@ -439,7 +507,7 @@
             .attr("class", "cable")
             .attr("from", node.attr("id"))
             .attr("start", dx + ", " + dy)
-            .attr("output", d3.select(this).attr("output"))
+            .attr("output", d3.select(this).attr("outputPos"))
             .attr("marker-end", "url(#arrowhead)");
     }
 
@@ -454,9 +522,7 @@
         });
     }
 
-    function lineended(d) {
-
-
+    function lineended() {
 
         drawLine = false;
         var anchor = d3.selectAll("circle.end");
@@ -464,25 +530,35 @@
             activeLine.remove();
         } else {
             var pNode = d3.select(anchor.node().parentNode);
-
-            var input = pNode.node().getBoundingClientRect().width / (+anchor.attr("input") + 1);
+            var input = pNode.node().getBoundingClientRect().width / 2;
             anchor.classed("end", false);
             activeLine.attr("to", pNode.attr("id"));
             activeLine.attr("input", anchor.attr("input"));
             activeLine.attr("end", input + ", 0");
             activeLine.attr("id", new Date().getTime());
-            //todo 记录线的起始连接元素
+            //记录节点输出的个数
             var startNode = d3.select(this.parentNode);
+            for (var i = 0, len = workflow.nodes.length; i < len; i++) {
+                if (workflow.nodes[i].id == startNode.attr("id")) {
+                    if (d3.select(this).attr("outputPos") == 0) {
+                        workflow.nodes[i].childrenMsg.left = pNode.attr("id");
+                    } else {
+                        workflow.nodes[i].childrenMsg.right = pNode.attr("id");
+                    }
+                }
+            }
+
             workflow.lines.push({
                 id: activeLine.attr("id"),//线的id
-                startNode: startNode,//起始节点
+                d: activeLine.attr("d"),//线的路径
+                start:activeLine.attr("start"),
+                end:activeLine.attr("end"),
                 startId: startNode.attr("id"),//起始节点id
                 startDataId: startNode.attr("data-id"),//起始节点data-id
-                endNode: pNode,//结束节点
                 endId: pNode.attr("id"),//结束节点id
                 endDataId: pNode.attr("data-id")//结束节点data-id
             });
-            console.log("workflow", workflow);
+            console.log("workflow", JSON.stringify(workflow));
 
             //点击线出现删除按钮
             activeLine.on("click", function (e) {
@@ -504,12 +580,12 @@
                         this.remove();
                         //删除对应数
                         for (var i = 0, len = workflow.lines.length; i < len; i++) {
-                            if(workflow.lines[i].id == lineId){
-                                workflow.lines.splice(i,1);
+                            if (workflow.lines[i].id == lineId) {
+                                workflow.lines.splice(i, 1);
                                 break;
                             }
                         }
-                        console.log("workflow:",workflow);
+                        console.log("workflow:", workflow);
                         d3.event.stopPropagation();
                     });
                 d3.event.stopPropagation();
@@ -530,6 +606,7 @@
     d3.select("svg").on("click", function () {
         d3.select(".deleteLine").remove();
     });
+
     var dx = 0;
     var dy = 0;
     var dragElem = null;
@@ -605,6 +682,12 @@
         dragElem = null;
     }
 
+    /**
+     * 增加节点
+     * @param svg
+     * @param node
+     * @returns {*}
+     */
     function addNode(svg, node) {
         var g = svg.append("g")
             .attr("class", "node")
@@ -651,27 +734,67 @@
 
         // input circle 输入标识
         var inputs = node.inputs || 0;
-        g.attr("inputs", inputs);
-        for (var i = 0; i < inputs; i++) {
-            g.append("circle")
-                .attr("class", "input")
-                .attr("input", (i + 1))
-                .attr("cx", width * (i + 1) / (inputs + 1))
-                .attr("cy", 0)
-                .attr("r", 5);
-        }
+//        g.attr("inputs", inputs);
+        g.append("circle")
+            .attr("class", "input")
+            .attr("input", 1)
+            .attr("cx", width / 2)
+            .attr("cy", 0)
+            .attr("r", 5);
+
 
         // output circle 输出标识
         var outputs = node.outputs || 0;
-        g.attr("outputs", outputs);
+//        g.attr("outputs", outputs);
         for (i = 0; i < outputs; i++) {
             g.append("circle")
-                .attr("output", (i + 1))
-                .attr("class", "output")
-                .attr("cx", width * (i + 1) / (outputs + 1))
+                .attr("outputPos", 0) //outputPos : 1:左 2：右
+                .attr("class", "output leftOutput")
+                .attr("cx", width / 3)
+                .attr("cy", height)
+                .attr("r", 5);
+            g.append("circle")
+                .attr("outputPos", 1)
+                .attr("class", "output rightOutput")
+                .attr("cx", width * 2 / 3)
                 .attr("cy", height)
                 .attr("r", 5);
         }
+
+
+        g.call(
+            d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended)
+        );
+
+        g.selectAll("circle.output").call(
+            d3.drag()
+                .on("start", linestarted)
+                .on("drag", linedragged)
+                .on("end", lineended)
+        );
+
+        g.selectAll("circle.input")
+            .on("mouseover", function () {
+                if (drawLine) {
+
+                    //判断线数组中fromid=入口
+                    var inLineLength = workflow.lines.filter(function (en) {
+                        return en.endId == d3.select(this.parentNode).attr("id");
+                    }.bind(this)).length;
+                    if (inLineLength >= 1) {
+                        alert("入口只能连一条线");
+                        activeLine.remove();
+                        return false;
+                    }
+                    d3.selectAll("circle.end").classed("end", false);
+                    d3.select(this).classed("end", true);
+
+
+                }
+            });
 
         return g;
     }
