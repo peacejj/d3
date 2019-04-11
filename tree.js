@@ -31,6 +31,9 @@
     var drawLine = false;
     var banAddLine = false;//禁止增加连线
 
+    //sql结果
+    var sqlRes = "";
+
     var api = {
         config: function (ops) {
             //没有参数传入，直接返回默认参数
@@ -408,8 +411,8 @@
                     endId: pNode.attr("id"),//结束节点id
                     endDataId: pNode.attr("data-id")//结束节点data-id
                 });
-                // console.log("workflow", JSON.stringify(workflow));
-                console.log("workflow", workflow);
+                console.log("workflow", JSON.stringify(workflow));
+                // console.log("workflow", workflow);
 
                 //点击线出现删除按钮
                 activeLine.on("click", api.addDeleteBtnInLine);
@@ -487,14 +490,88 @@
                 alert("tree搭建不规范！");
             }
             for (var i = 0, len = workflow.nodes.length; i < len; i++) {
-                if(workflow.nodes[i].outputs == 1){
-                    console.log(workflow.nodes[i].childrenMsg.left);
-                    if(workflow.nodes[i].childrenMsg.left == undefined || workflow.nodes[i].childrenMsg.left == "" ||  workflow.nodes[i].childrenMsg.right == undefined || workflow.nodes[i].childrenMsg.right == ""){
-                        alert("tree搭建不规范！"+ workflow.nodes[i].id+"节点没有画子节点");
+                if (workflow.nodes[i].outputs == 1) {
+                    if (workflow.nodes[i].childrenMsg.left == undefined || workflow.nodes[i].childrenMsg.left == "" || workflow.nodes[i].childrenMsg.right == undefined || workflow.nodes[i].childrenMsg.right == "") {
+                        alert("tree搭建不规范！" + workflow.nodes[i].id + "节点没有画子节点");
                     }
                 }
             }
-        }
+        },
+        /**
+         * 数据转化为sql
+         */
+        transformToSql: function () {
+            var sqlRes = [];
+            var allNotLeafChildren = [];
+            
+            var allNotLeafNode = workflow.nodes.filter(function (en) {
+                return en.outputs == 1;
+            });
+
+            for (var i = 0, len = allNotLeafNode.length; i < len; i++) {
+                if(allNotLeafNode[i].outputs == 1){
+                    allNotLeafChildren.push(allNotLeafNode[i].childrenMsg.left);
+                    allNotLeafChildren.push(allNotLeafNode[i].childrenMsg.right);
+                }
+            }
+            var rootNode = allNotLeafNode.filter(function(item) {
+                return !allNotLeafChildren.includes(item.id.toString())
+            });
+            console.log("allNotLeafNode",allNotLeafNode);
+            console.log("allNotLeafChildren",allNotLeafChildren);
+            console.log("rootNode",rootNode);
+            api.test(rootNode[0],sqlRes);
+            console.log("sqlRes",sqlRes);
+            console.log("sqlRes",sqlRes.join(""));
+
+        },
+        test: function (node, res) {
+            if (!node) {
+                return;
+            }
+            var leftNode = workflow.nodes.filter(function (en) {
+                return en.id == node.childrenMsg.left;
+            })[0];
+            console.log("leftNode",leftNode);
+            api.test(leftNode, res);
+
+            if (node.outputs == 0) {
+                res.push("(" + node.dataId + ")");
+                // res += "(" + node.dataId + ")";
+            } else {
+                res.push(node.dataId);
+                // res += node.dataId;
+            }
+
+            console.log(res);
+
+            var rightNode = workflow.nodes.filter(function (en) {
+                return en.id == node.childrenMsg.right;
+            })[0];
+            console.log("rightNode",rightNode);
+            api.test(rightNode, res);
+
+
+            // for (var j = 0, len = workflow.nodes.length; j < len; j++) {
+            //     if (workflow.nodes[j].id == node.childrenMsg.left) {
+            //         if (workflow.nodes[j].outputs == 0) {
+            //             var rightNode = workflow.nodes.filter(function (en) {
+            //                 return en.id == node.childrenMsg.right;
+            //             })[0];
+            //             sqlRes += "(" + workflow.nodes[j].dataId + ")" + node.dataId + "(" + rightNode.id + ")";
+            //             if (rightNode.outputs == 0) {
+            //
+            //             }
+            //             test(workflow.nodes[j]);
+            //         } else {
+            //             test(workflow.nodes[j]);
+            //         }
+            //         break;
+            //     }
+            // }
+
+        },
+
     };
 
     //点击body去除浮动按钮
