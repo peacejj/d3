@@ -139,7 +139,7 @@
             cursor: pointer;
         }
 
-        .bpmn .deleteNode {
+        .bpmn .node .deleteNode {
             cursor: pointer;
         }
 
@@ -226,13 +226,13 @@
                             <span>二分类</span>
                         </a>
                         <ul>
-                            <li class="node">
+                            <li class="node" data-id="311">
                                 <a href="">
                                     <i class="fa fa-circle-o"></i>
                                     <span>GBDT二分类</span>
                                 </a>
                             </li>
-                            <li class="node">
+                            <li class="node" data-id="312">
                                 <a href="">
                                     <i class="fa fa-circle-o"></i>
                                     <span>PS-SMART</span>
@@ -319,8 +319,8 @@
         </div>
         <div style="height: 40px; border-top: solid 1px #e7e7e7; text-align: center; line-height: 40px; position: absolute;bottom: 2px; width: 100%">
             <a class="btn btn-link checkTreeCorrectBtn" href="javascript:;"><i class="fa fa-play-circle-o" aria-hidden="true"></i>&nbsp;运行</a>
-            <a class="btn btn-link" href="#"><i class="fa fa-cloud-upload" aria-hidden="true"></i>&nbsp;部署</a>
-            <a class="btn btn-link" href="#"><i class="fa fa-share-alt" aria-hidden="true"></i>&nbsp;分享</a>
+            <a class="btn btn-link " href="javascript:;"><i class="fa fa-cloud-upload" aria-hidden="true"></i>&nbsp;部署</a>
+            <a class="btn btn-link" href="javascript:;"><i class="fa fa-share-alt" aria-hidden="true"></i>&nbsp;分享</a>
         </div>
     </div>
     <div class="right-wrapper">
@@ -335,38 +335,174 @@
         var svg = d3.select("svg");
 
         //根据数据集转换成图
+//        var testData = {
+//            "nodes": [{
+//                "id": 1554878411108,
+//                "dataId": "101",
+//                "x": 176,
+//                "y": 41,
+//                "text": "\n                        \n                            \n                            读数据\n                        \n                    ",
+//                "childrenMsg": {
+//                    "left": "1554878412588"
+//                },
+//                "inputs": 0,
+//                "outputs": 1
+//            }, {
+//                "id": 1554878412588,
+//                "dataId": "102",
+//                "x": 180,
+//                "y": 179,
+//                "text": "\n                        \n                            \n                            写数据\n                        \n                    ",
+//                "childrenMsg": {},
+//                "inputs": 1,
+//                "outputs": 0
+//            }],
+//            "lines": [{
+//                "id": "1554878414546",
+//                "outputPos": "0",
+//                "d": "M236,87 C236,133.5 271,133.5 271,180",
+//                "start": "60, 46",
+//                "end": "90, 0",
+//                "startId": "1554878411108",
+//                "startDataId": "101",
+//                "endId": "1554878412588",
+//                "endDataId": "102"
+//            }]
+//        };
         var testData = {
             "nodes": [{
-                "id": 1554878411108,
+                "id": 1555034553053,
                 "dataId": "101",
-                "x": 176,
-                "y": 41,
+                "x": 395,
+                "y": 40,
                 "text": "\n                        \n                            \n                            读数据\n                        \n                    ",
                 "childrenMsg": {
-                    "left": "1554878412588"
+                    "left": "1555034555452",
+                    "right": "1555034558236"
                 },
                 "inputs": 0,
                 "outputs": 1
             }, {
-                "id": 1554878412588,
-                "dataId": "102",
-                "x": 180,
+                "id": 1555034555452,
+                "dataId": "311",
+                "x": 169,
+                "y": 201,
+                "text": "\n                                \n                                    \n                                    GBDT二分类\n                                \n                            ",
+                "childrenMsg": {
+                    "left": "1555034560460",
+                    "right": "1555034562949"
+                },
+                "inputs": 1,
+                "outputs": 1
+            }, {
+                "id": 1555034558236,
+                "dataId": "312",
+                "x": 666,
                 "y": 179,
-                "text": "\n                        \n                            \n                            写数据\n                        \n                    ",
+                "text": "\n                                \n                                    \n                                    PS-SMART\n                                \n                            ",
+                "childrenMsg": {
+                    "left": "1555034565244",
+                    "right": "1555034567563"
+                },
+                "inputs": 1,
+                "outputs": 1
+            }, {
+                "id": 1555034560460,
+                "dataId": "211",
+                "x": 54,
+                "y": 395,
+                "text": "\n                        \n                            \n                            类型转换\n                        \n                    ",
+                "childrenMsg": {},
+                "inputs": 1,
+                "outputs": 0
+            }, {
+                "id": 1555034562949,
+                "dataId": "212",
+                "x": 332,
+                "y": 371,
+                "text": "\n                        \n                            \n                            拆分\n                        \n                    ",
+                "childrenMsg": {},
+                "inputs": 1,
+                "outputs": 0
+            }, {
+                "id": 1555034565244,
+                "dataId": "213",
+                "x": 660,
+                "y": 352,
+                "text": "\n                        \n                            \n                            缺失值填充\n                        \n                    ",
+                "childrenMsg": {},
+                "inputs": 1,
+                "outputs": 0
+            }, {
+                "id": 1555034567563,
+                "dataId": "215",
+                "x": 976,
+                "y": 359,
+                "text": "\n                        \n                            \n                            标准化\n                        \n                    ",
                 "childrenMsg": {},
                 "inputs": 1,
                 "outputs": 0
             }],
             "lines": [{
-                "id": "1554878414546",
+                "id": "1555034570346",
                 "outputPos": "0",
-                "d": "M236,87 C236,133.5 271,133.5 271,180",
+                "d": "M455,86 C455,142 256,142 256,198",
                 "start": "60, 46",
                 "end": "90, 0",
-                "startId": "1554878411108",
+                "startId": "1555034553053",
                 "startDataId": "101",
-                "endId": "1554878412588",
-                "endDataId": "102"
+                "endId": "1555034555452",
+                "endDataId": "311"
+            }, {
+                "id": "1555034572361",
+                "outputPos": "1",
+                "d": "M515,86 C515,133.5 755,133.5 755,181",
+                "start": "120, 46",
+                "end": "90, 0",
+                "startId": "1555034553053",
+                "startDataId": "101",
+                "endId": "1555034558236",
+                "endDataId": "312"
+            }, {
+                "id": "1555034575009",
+                "outputPos": "0",
+                "d": "M229,247 C229,321 145,321 145,395",
+                "start": "60, 46",
+                "end": "90, 0",
+                "startId": "1555034555452",
+                "startDataId": "311",
+                "endId": "1555034560460",
+                "endDataId": "211"
+            }, {
+                "id": "1555034577593",
+                "outputPos": "1",
+                "d": "M289,247 C289,308 422,308 422,369",
+                "start": "120, 46",
+                "end": "90, 0",
+                "startId": "1555034555452",
+                "startDataId": "311",
+                "endId": "1555034562949",
+                "endDataId": "212"
+            }, {
+                "id": "1555034579729",
+                "outputPos": "0",
+                "d": "M726,225 C726,289 748,289 748,353",
+                "start": "60, 46",
+                "end": "90, 0",
+                "startId": "1555034558236",
+                "startDataId": "312",
+                "endId": "1555034565244",
+                "endDataId": "213"
+            }, {
+                "id": "1555034583513",
+                "outputPos": "1",
+                "d": "M786,225 C786,290.5 1066,290.5 1066,356",
+                "start": "120, 46",
+                "end": "90, 0",
+                "startId": "1555034558236",
+                "startDataId": "312",
+                "endId": "1555034567563",
+                "endDataId": "215"
             }]
         };
         tree.setWorkflow(testData);
@@ -396,7 +532,7 @@
                 if (node.dataId == 101) {
                     node.inputs = 0;
                     node.outputs = 1;
-                } else if (node.dataId == 102) {
+                } else if (node.dataId == 102 || node.dataId == 211 || node.dataId == 212 || node.dataId == 213 || node.dataId == 214 || node.dataId == 215) {
                     node.inputs = 1;
                     node.outputs = 0;
                 } else {
@@ -413,7 +549,7 @@
 
         //校验树的正确性
         $(".checkTreeCorrectBtn").click(function () {
-            tree.checkTreeCorrectBtn();
+            console.log("sql: ",tree.transformToSql());// (((211)311(212))101((213)312(215)))
         });
 
     });
