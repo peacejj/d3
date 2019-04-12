@@ -243,7 +243,6 @@
             dragElem = d3.select(this);
             //清空删除按钮
             d3.select(".deleteLine").remove();
-            d3.selectAll(".deleteNode").remove();
         },
         dragged: function () {
             dragElem.attr("transform", "translate(" + (d3.event.x - dx) + ", " + (d3.event.y - dy) + ")");
